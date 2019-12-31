@@ -9,7 +9,7 @@ import java.util.Map;
 
 import com.google.common.collect.Lists;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.PacketBuffer;
@@ -30,7 +30,7 @@ public class VillageMarker {
     static List<List<Integer>> doors = new ArrayList<List<Integer>>();
     static int expectedVillageCount = 0;
     static int villageCount = 0;
-    
+
 	/* ===== SETTINGS ===== */
 
     public static final int sphereDensity = 80;
@@ -49,17 +49,17 @@ public class VillageMarker {
 
         if (!golem && !_radius && !lines) return;
 
-        EntityPlayerSP player = Minecraft.getMinecraft().player;
-        final double d0 = player.lastTickPosX + (player.posX - player.lastTickPosX) * partialTicks;
-        final double d1 = player.lastTickPosY + (player.posY - player.lastTickPosY) * partialTicks;
-        final double d2 = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * partialTicks;
+        Entity entity = Minecraft.getMinecraft().getRenderViewEntity();
+        final double d0 = entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * partialTicks;
+        final double d1 = entity.lastTickPosY + (entity.posY - entity.lastTickPosY) * partialTicks;
+        final double d2 = entity.lastTickPosZ + (entity.posZ - entity.lastTickPosZ) * partialTicks;
         Color color = null;
         BlockPos center = null;
-        
+
         /* ===== ENABLE OPENGL STUFF ===== */
 
         RenderUtils.prepareOpenGL(true);
-        
+
 		/* ===== GOLEM CAGE ===== */
 
         if (golem && !centers.isEmpty()) {
@@ -69,7 +69,7 @@ public class VillageMarker {
                 RenderUtils.drawBox(d0, d1, d2, center.getX() - 8, center.getY() - 3, center.getZ() - 8, center.getX() + 8, center.getY() + 3, center.getZ() + 8, color);
             }
         }
-        
+
 		/* ===== RADII STUFF ==== */
 
         if (_radius && !radii.isEmpty()) {
@@ -78,12 +78,12 @@ public class VillageMarker {
                 center = new BlockPos(ints.get(0), ints.get(1), ints.get(2));
                 int r = ints.get(3);
                 color = entry.getValue();
-                
+
 				/* === POPULATION CAGE === */
 
                 if (population)
                     RenderUtils.drawBox(d0, d1, d2, center.getX() - r, center.getY() - 4, center.getZ() - r, center.getX() + r, center.getY() + 4, center.getZ() + r, color);
-                
+
 				/* === SPHERES === */
 
                 if (village_radius != 0)
@@ -104,7 +104,7 @@ public class VillageMarker {
                 }
             }
         }
-        
+
         /* ===== DISABLE OPENGL STUFF ===== */
 
         RenderUtils.prepareOpenGL(false);
@@ -122,11 +122,11 @@ public class VillageMarker {
             }
         }
     }
-    
+
     public static void addVillageToList(Village village) {
         if (villageCount >= expectedVillageCount)
             return;
-        
+
         boolean _golem = golem, _radius = population || village_radius != 0 || door_radius != 0, _lines = lines;
 
         if (_golem || _radius || _lines) {
@@ -151,7 +151,7 @@ public class VillageMarker {
                     addPos(list, d.getDoorBlockPos());
                 }
             }
-            
+
             villageCount++;
         }
     }
@@ -186,7 +186,7 @@ public class VillageMarker {
             genLists(villageList);
         }
     }
-    
+
     public static void largeVillageUpdate(PacketBuffer data) {
         int count = data.readUnsignedByte() + 1;
         for (int i = 0; i < count; i++) {

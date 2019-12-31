@@ -4,9 +4,9 @@ import carpetclient.Config;
 import carpetclient.pluginchannel.CarpetPluginChannel;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.client.renderer.entity.RenderManager;
+import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.PacketBuffer;
@@ -50,15 +50,15 @@ public class RandomtickDisplay {
     public static void draw(float partialTicks) {
         if (!Config.randomtickingChunksVisualizer.getValue()) return;
 
-        final EntityPlayerSP player = Minecraft.getMinecraft().player;
-        final double d0 = player.lastTickPosX + (player.posX - player.lastTickPosX) * partialTicks;
-        final double d1 = player.lastTickPosY + (player.posY - player.lastTickPosY) * partialTicks;
-        final double d2 = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * partialTicks;
+        final Entity entity = Minecraft.getMinecraft().getRenderViewEntity();
+        final double d0 = entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * partialTicks;
+        final double d1 = entity.lastTickPosY + (entity.posY - entity.lastTickPosY) * partialTicks;
+        final double d2 = entity.lastTickPosZ + (entity.posZ - entity.lastTickPosZ) * partialTicks;
         final RenderManager rm = Minecraft.getMinecraft().getRenderManager();
 
         int counter = 0;
         for (BlockPos pos : chunks) {
-            EntityRenderer.drawNameplate(Minecraft.getMinecraft().fontRenderer, gold + counter, (float) (pos.getX() + 0.5f - d0), (float) (player.posY + 0.2f - d1), (float) (pos.getZ() + 0.5f - d2), 0, rm.playerViewY, rm.playerViewX, rm.options.thirdPersonView == 2, false);
+            EntityRenderer.drawNameplate(Minecraft.getMinecraft().fontRenderer, gold + counter, (float) (pos.getX() + 0.5f - d0), (float) (entity.posY + 0.2f - d1), (float) (pos.getZ() + 0.5f - d2), 0, rm.playerViewY, rm.playerViewX, rm.options.thirdPersonView == 2, false);
             counter++;
         }
     }
