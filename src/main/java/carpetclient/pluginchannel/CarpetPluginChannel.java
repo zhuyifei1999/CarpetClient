@@ -91,6 +91,6 @@ public class CarpetPluginChannel {
      * @param data The data that is being sent to the server.
      */
     public static void packatSender(PacketBuffer data) {
-        PacketSplitter.send(CARPET_CHANNEL_NAME, data, ChannelPolicy.DISPATCH_IF_REGISTERED);
+        PacketSplitter.send(CARPET_CHANNEL_NAME, data, ChannelPolicy.DISPATCH_ALWAYS);
     }
 }
