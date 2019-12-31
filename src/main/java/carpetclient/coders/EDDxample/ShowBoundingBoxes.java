@@ -2,6 +2,7 @@ package carpetclient.coders.EDDxample;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.PacketBuffer;
@@ -80,11 +81,11 @@ public class ShowBoundingBoxes {
      */
     public static void RenderStructures(float partialTicks) {
         if (group == null) return;
-        
-        EntityPlayerSP player = Minecraft.getMinecraft().player;
-        final double d0 = player.lastTickPosX + (player.posX - player.lastTickPosX) * partialTicks;
-        final double d1 = player.lastTickPosY + (player.posY - player.lastTickPosY) * partialTicks;
-        final double d2 = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * partialTicks;
+
+        Entity entity = Minecraft.getMinecraft().getRenderViewEntity();
+        final double d0 = entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * partialTicks;
+        final double d1 = entity.lastTickPosY + (entity.posY - entity.lastTickPosY) * partialTicks;
+        final double d2 = entity.lastTickPosZ + (entity.posZ - entity.lastTickPosZ) * partialTicks;
 
         RenderUtils.prepareOpenGL(true);
 
@@ -92,19 +93,19 @@ public class ShowBoundingBoxes {
             ArrayList<StructureBoundingBox> array = group[SLIME_CHUNKS];
             if (array == null) return;
             for (StructureBoundingBox box : array) {
-                if (insideRenderDistance(box, player)) {
+                if (insideRenderDistance(box)) {
                     RenderUtils.drawBox(d0, d1, d2, box.minX, box.minY, box.minZ, box.maxX + 1, box.maxY + 1, box.maxZ + 1, colors[SLIME_CHUNKS]);
                 }
             }
         }
 
-        if (player.dimension == dimension) {
+        if (entity.dimension == dimension) {
             for (int i = 0; i < group.length; i++) {
                 if (!show[i]) continue;
                 ArrayList<StructureBoundingBox> array = group[i];
                 if (array == null) return;
                 for (StructureBoundingBox box : array) {
-                    if (insideRenderDistance(box, player)) {
+                    if (insideRenderDistance(box)) {
                         RenderUtils.drawBox(d0, d1, d2, box.minX, box.minY, box.minZ, box.maxX + 1, box.maxY + 1, box.maxZ + 1, colors[i]);
                     }
                 }
@@ -118,10 +119,11 @@ public class ShowBoundingBoxes {
      * Calculates if the bounding box is within render distance to the player.
      *
      * @param box    The bounding box that is to be displayed.
-     * @param player Relation to the player that the boxes should be displayed.
      * @return If within range returns true.
      */
-    private static boolean insideRenderDistance(StructureBoundingBox box, EntityPlayerSP player) {
+    private static boolean insideRenderDistance(StructureBoundingBox box) {
+        EntityPlayerSP player = Minecraft.getMinecraft().player;
+
         int minX = (int) player.posX - renderDist;
         int maxX = (int) player.posX + renderDist;
 
@@ -156,7 +158,7 @@ public class ShowBoundingBoxes {
         World worldIn = Minecraft.getMinecraft().world;
         if (nbt != null && worldIn != null) {
             NBTTagList nbttaglist = nbt.getTagList("Boxes", 9);
-            
+
             ArrayList<NBTTagCompound> allBoxes = new ArrayList<>();
             for (int i = 0; i < nbttaglist.tagCount(); i++) {
                 NBTTagList boxList = (NBTTagList) nbttaglist.get(i);
@@ -164,14 +166,14 @@ public class ShowBoundingBoxes {
                     allBoxes.add(boxList.getCompoundTagAt(j));
                 }
             }
-            
+
             structureComponentInitialSettings(nbt, allBoxes.size());
-            
+
             for (NBTTagCompound box : allBoxes)
                 addStructure(box);
         }
     }
-    
+
     public static void largeBoundingBoxStructuresStart(PacketBuffer data) {
         NBTTagCompound nbt = null;
         try {
@@ -180,7 +182,7 @@ public class ShowBoundingBoxes {
             e.printStackTrace();
             return;
         }
-        
+
         if (nbt != null && Minecraft.getMinecraft().world != null) {
             int expected = data.readVarInt();
             if (expected >= 100000)
@@ -188,7 +190,7 @@ public class ShowBoundingBoxes {
             structureComponentInitialSettings(nbt, expected);
         }
     }
-    
+
     public static void largeBoundingBoxStructures(PacketBuffer data) {
         int count = data.readUnsignedByte() + 1;
         for (int i = 0; i < count; i++) {
@@ -204,14 +206,14 @@ public class ShowBoundingBoxes {
             }
         }
     }
-    
+
     public static void structureComponentInitialSettings(NBTTagCompound nbt, int expectedStructureCount_) {
         structureCount = 0;
         expectedStructureCount = expectedStructureCount_;
-        
+
         dimension = nbt.getInteger("Dimention");
         seed = nbt.getLong("Seed");
-        
+
         EntityPlayerSP player = Minecraft.getMinecraft().player;
         int cnkX = (int) player.posX / 16;
         int cnkZ = (int) player.posZ / 16;
@@ -225,15 +227,15 @@ public class ShowBoundingBoxes {
             }
         }
     }
-    
+
     public static void addStructure(NBTTagCompound compound) {
         if (structureCount >= expectedStructureCount)
             return;
-        
+
         int type = compound.getInteger("type");
         StructureBoundingBox boundingBox = new StructureBoundingBox(compound.getIntArray("bb"));
         group[type].add(boundingBox);
-        
+
         structureCount++;
     }
 
@@ -241,7 +243,7 @@ public class ShowBoundingBoxes {
         randy.setSeed(seed + (long)(x * x * 4987142) + (long)(x * 5947611) + (long)(z * z) * 4392871L + (long)(z * 389711) ^ 987234911L);
         return randy.nextInt(10) == 0;
     }
-    
+
     public static void clear(){
         for (ArrayList<StructureBoundingBox> l : group)
             l.clear();

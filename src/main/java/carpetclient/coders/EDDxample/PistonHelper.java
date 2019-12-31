@@ -6,9 +6,9 @@ import net.minecraft.block.BlockDirectional;
 import net.minecraft.block.state.BlockPistonStructureHelper;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.client.renderer.entity.RenderManager;
+import net.minecraft.entity.Entity;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
@@ -85,10 +85,10 @@ public class PistonHelper {
      */
     public static void draw(float partialTicks) {
         if (Config.pistonVisualizer.getValue() && activated) {
-            final EntityPlayerSP player = Minecraft.getMinecraft().player;
-            final double d0 = player.lastTickPosX + (player.posX - player.lastTickPosX) * partialTicks;
-            final double d1 = player.lastTickPosY + (player.posY - player.lastTickPosY) * partialTicks;
-            final double d2 = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * partialTicks;
+            final Entity entity = Minecraft.getMinecraft().getRenderViewEntity();
+            final double d0 = entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * partialTicks;
+            final double d1 = entity.lastTickPosY + (entity.posY - entity.lastTickPosY) * partialTicks;
+            final double d2 = entity.lastTickPosZ + (entity.posZ - entity.lastTickPosZ) * partialTicks;
             final RenderManager rm = Minecraft.getMinecraft().getRenderManager();
             BlockPos pos;
 
@@ -130,4 +130,3 @@ public class PistonHelper {
         }
     }
 }
-
