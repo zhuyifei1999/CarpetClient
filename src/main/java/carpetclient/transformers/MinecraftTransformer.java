@@ -244,7 +244,10 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
 
                 currentStatement.add(insn);
 
-                if (insn.getOpcode() >= 0 && (frames[i + 1] == null || frames[i + 1].getStackSize() == 0)) {
+                if (
+                    (insn.getOpcode() >= 0 || insn instanceof LabelNode) &&
+                    (i + 1 >= frames.length || frames[i + 1] == null || frames[i + 1].getStackSize() == 0)
+                ) {
                     statements.add(currentStatement);
                     currentStatement = null;
                 }

@@ -37,7 +37,7 @@ public abstract class MixinTimer implements AMixinTimer {
     public float renderPartialTicksPlayer;
     public float elapsedPartialTicksPlayer;
 
-    private static final float tickLengthPlayer = 1000.0F / 2F;
+    private static final float tickLengthPlayer = 1000.0F / 20.0F;
 
     @Override
     public void setWorldTickRate(float tps) {
