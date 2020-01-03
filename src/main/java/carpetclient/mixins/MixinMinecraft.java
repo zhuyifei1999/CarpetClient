@@ -22,7 +22,6 @@ import net.minecraft.util.ReportedException;
 import net.minecraft.util.Timer;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.EnumDifficulty;
-import org.spongepowered.asm.lib.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -85,50 +84,6 @@ public abstract class MixinMinecraft implements IMixinMinecraft {
     }
 
     /**
-     * Inject method to place a world timer update method next to the regular timer update. Disabled when tick speeds are synched.
-     */
-    @Inject(method = "runGameLoop", at = @At(value = "FIELD", target = "Lnet/minecraft/client/Minecraft;timer:Lnet/minecraft/util/Timer;", shift = At.Shift.BEFORE))
-    public void injectWorldTimer(CallbackInfo ci) {
-        if (TickRate.runTickRate) {
-            TickRate.timerWorld.updateTimer();
-        }
-    }
-
-    /**
-     * Redirect method edit the updateCameraAndRender with the world timer instead of the regular timer. Disabled when tick speeds are synched
-     */
-    @Redirect(method = "runGameLoop", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/EntityRenderer;updateCameraAndRender(FJ)V"))
-    public void redirectUpdateCameraAndRender(EntityRenderer entityRenderer,
-                                              float partialTicks, long nanoTime // updateCameraAndRender() vars
-                                              // runGameLoop() vars
-    ) {
-        if (TickRate.runTickRate) {
-            entityRenderer.updateCameraAndRender(this.isGamePaused ? this.renderPartialTicksPaused : TickRate.timerWorld.renderPartialTicks, System.nanoTime());
-        } else {
-            entityRenderer.updateCameraAndRender(this.isGamePaused ? this.renderPartialTicksPaused : timer.renderPartialTicks, System.nanoTime());
-        }
-    }
-
-    /**
-     * Inject after the runTick method have looped to update world and player entities differently. Disabled when tick speeds are synched.
-     */
-    @Inject(method = "runGameLoop", at = @At(value = "FIELD", target = "Lnet/minecraft/client/Minecraft;profiler:Lnet/minecraft/profiler/Profiler;", ordinal = 3, shift = At.Shift.BEFORE))
-    public void injectPlayerWorldLoops(CallbackInfo ci) {
-        if (TickRate.runTickRate) {
-            int playerTicks = this.timer.elapsedTicks;
-            int worldTicks = TickRate.timerWorld.elapsedTicks;
-            while (playerTicks > 0) {
-                this.runTickPlayer();
-                playerTicks--;
-            }
-            while (worldTicks > 0) {
-                this.runTickWorld();
-                worldTicks--;
-            }
-        }
-    }
-
-    /**
      * Reset logic for clipping through pistons.
      *
      * @param ci
@@ -136,16 +91,6 @@ public abstract class MixinMinecraft implements IMixinMinecraft {
     @Inject(method = "runTick", at = @At("HEAD"))
     public void fixingPistons(CallbackInfo ci) {
         PistonFix.resetBools();
-    }
-
-    /**
-     * Inject to eject out of the run tick method for more granular editing of world and player entities. Disabled when tick speeds are synched.
-     */
-    @Inject(method = "runTick", at = @At(value = "JUMP", opcode = Opcodes.IFNULL, ordinal = 9, shift = At.Shift.BEFORE), cancellable = true)
-    public void injectJumpOutForWorldUpdate(CallbackInfo ci) {
-        if (TickRate.runTickRate) {
-            ci.cancel();
-        }
     }
 
     /**
