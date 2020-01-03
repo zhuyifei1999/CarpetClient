@@ -4,27 +4,7 @@ import carpetclient.Config;
 import carpetclient.bugfix.PistonFix;
 import carpetclient.rules.TickRate;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.audio.MusicTicker;
-import net.minecraft.client.audio.SoundHandler;
-import net.minecraft.client.entity.EntityPlayerSP;
-import net.minecraft.client.gui.GuiIngame;
-import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.multiplayer.WorldClient;
-import net.minecraft.client.particle.ParticleManager;
-import net.minecraft.client.renderer.EntityRenderer;
-import net.minecraft.client.renderer.RenderGlobal;
-import net.minecraft.client.tutorial.Tutorial;
-import net.minecraft.crash.CrashReport;
-import net.minecraft.crash.CrashReportCategory;
-import net.minecraft.network.NetworkManager;
-import net.minecraft.profiler.Profiler;
-import net.minecraft.util.ReportedException;
-import net.minecraft.util.Timer;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.EnumDifficulty;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -33,56 +13,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(Minecraft.class)
 public abstract class MixinMinecraft implements IMixinMinecraft {
-
-    @Shadow
-    private @Final
-    Timer timer;
-    @Shadow
-    private boolean isGamePaused;
-    @Shadow
-    private float renderPartialTicksPaused;
-    @Shadow
-    public WorldClient world;
-    @Shadow
-    public @Final
-    Profiler profiler;
-    @Shadow
-    public EntityPlayerSP player;
-    @Shadow
-    private int joinPlayerCounter;
-    @Shadow
-    public EntityRenderer entityRenderer;
-    @Shadow
-    public RenderGlobal renderGlobal;
-    @Shadow
-    private SoundHandler soundHandler;
-    @Shadow
-    private MusicTicker musicTicker;
-    @Shadow
-    private @Final
-    Tutorial tutorial;
-    @Shadow
-    public ParticleManager effectRenderer;
-    @Shadow
-    private NetworkManager networkManager;
-    @Shadow
-    long systemTime;
-    @Shadow
-    public GuiIngame ingameGUI;
-    @Shadow
-    public GuiScreen currentScreen;
-    @Shadow
-    public boolean inGameHasFocus;
-
-    @Shadow
-    public static long getSystemTime() {
-        return 0;
-    }
-
-    @Shadow
-    public void setIngameFocus() {
-    }
-
     /**
      * Reset logic for clipping through pistons.
      *
@@ -103,118 +33,5 @@ public abstract class MixinMinecraft implements IMixinMinecraft {
         } else {
             return 200L;
         }
-    }
-
-    /**
-     * Updating player updates at regular speed at 20 ticks per second.
-     */
-    public void runTickPlayer() {
-        if (this.world != null) {
-            if (this.player != null) {
-
-                if (!this.isGamePaused) this.world.updateEntity(this.player);
-                ++this.joinPlayerCounter;
-
-                if (this.joinPlayerCounter == 30) {
-                    this.joinPlayerCounter = 0;
-                    this.world.joinEntityInSurroundings(this.player);
-                }
-            }
-
-            this.profiler.endStartSection("gameRenderer");
-
-            if (!this.isGamePaused) {
-                this.entityRenderer.updateRenderer();
-            }
-        } else if (this.entityRenderer.isShaderActive()) {
-            this.entityRenderer.stopUseShader();
-        }
-    }
-
-    /**
-     * Update world entities and rest of run tick method at servers tick rate.
-     */
-    public void runTickWorld() {
-        if (this.world != null) {
-            if (this.player != null) {
-                ++this.joinPlayerCounter;
-
-                if (this.joinPlayerCounter == 30) {
-                    this.joinPlayerCounter = 0;
-                    this.world.joinEntityInSurroundings(this.player);
-                }
-            }
-
-            this.profiler.endStartSection("gameRenderer");
-
-            if (!this.isGamePaused) {
-                this.entityRenderer.updateRenderer();
-            }
-
-            this.profiler.endStartSection("levelRenderer");
-
-            if (!this.isGamePaused) {
-                this.renderGlobal.updateClouds();
-            }
-
-            this.profiler.endStartSection("level");
-
-            if (!this.isGamePaused) {
-                if (this.world.getLastLightningBolt() > 0) {
-                    this.world.setLastLightningBolt(this.world.getLastLightningBolt() - 1);
-                }
-
-                this.world.loadedEntityList.remove(this.player);
-                this.world.updateEntities();
-                this.world.loadedEntityList.add(this.player);
-            }
-        } else if (this.entityRenderer.isShaderActive()) {
-            this.entityRenderer.stopUseShader();
-        }
-
-        if (!this.isGamePaused) {
-            this.musicTicker.update();
-            this.soundHandler.update();
-        }
-
-        if (this.world != null) {
-            if (!this.isGamePaused) {
-                this.world.setAllowedSpawnTypes(this.world.getDifficulty() != EnumDifficulty.PEACEFUL, true);
-                this.tutorial.update();
-
-                try {
-                    this.world.tick();
-                } catch (Throwable throwable2) {
-                    CrashReport crashreport2 = CrashReport.makeCrashReport(throwable2, "Exception in world tick");
-
-                    if (this.world == null) {
-                        CrashReportCategory crashreportcategory2 = crashreport2.makeCategory("Affected level");
-                        crashreportcategory2.addCrashSection("Problem", "Level is null!");
-                    } else {
-                        this.world.addWorldInfoToCrashReport(crashreport2);
-                    }
-
-                    throw new ReportedException(crashreport2);
-                }
-            }
-
-            this.profiler.endStartSection("animateTick");
-
-            if (!this.isGamePaused && this.world != null) {
-                this.world.doVoidFogParticles(MathHelper.floor(this.player.posX), MathHelper.floor(this.player.posY), MathHelper.floor(this.player.posZ));
-            }
-
-            this.profiler.endStartSection("particles");
-
-            if (!this.isGamePaused) {
-                this.effectRenderer.updateEffects();
-            }
-        } else if (this.networkManager != null) {
-            this.profiler.endStartSection("pendingConnection");
-            this.networkManager.processReceivedPackets();
-        }
-
-        this.profiler.endSection();
-        this.systemTime = Minecraft.getSystemTime();
     }
 }
