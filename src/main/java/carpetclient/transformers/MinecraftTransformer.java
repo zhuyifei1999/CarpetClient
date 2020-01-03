@@ -1,8 +1,7 @@
 package carpetclient.transformers;
 
-import com.mumfrey.liteloader.transformers.ClassTransformer;
+import carpetclient.transformers.ClassTransformer;
 import com.mumfrey.liteloader.transformers.ByteCodeUtilities;
-import com.mumfrey.liteloader.util.ObfuscationUtilities;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,118 +30,8 @@ import net.minecraft.launchwrapper.IClassTransformer;
 
 
 public class MinecraftTransformer extends ClassTransformer implements IClassTransformer {
-    static final String ObfHelper = "carpetclient.transformers.MinecraftObf";
-
-    ClassNode Obf;
-    Type targetType;
-    String targetClassName;
-
     public MinecraftTransformer() {
-        try {
-            this.Obf = loadClass(ObfHelper);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        this.targetType = getObfType(this.Obf);
-        this.targetClassName = this.targetType.getClassName();
-    }
-
-    private ClassNode loadClass(String className) throws IOException {
-        if (!ObfuscationUtilities.fmlIsPresent())
-            return ByteCodeUtilities.loadClass(className, this);
-
-        // Forge uses Searge mappins, and it has DeobfuscationTransformer
-        // to help with remapping Notch -> Searge, but it doesn't help on
-        // private members of Mixins which we use to get the Notch map.
-        // To workaround this, we transform the Obf helper before Forge
-        // does its remapping.
-        ClassNode Obf = ByteCodeUtilities.loadClass(className, false);
-        Type ObfType = getObfType(Obf);
-
-        for (MethodNode method : Obf.methods) {
-            Iterator<AbstractInsnNode> iter = method.instructions.iterator();
-            while (iter.hasNext()) {
-                AbstractInsnNode insn = iter.next();
-                boolean patch = false;
-
-                // Change: this.attr => this.__TARGET.attr
-                if (insn instanceof MethodInsnNode) {
-                    MethodInsnNode insn_ = (MethodInsnNode)insn;
-                    if (insn_.owner == Obf.name && !insn_.name.equals("__TARGET")) {
-                        insn_.owner = ObfType.getInternalName();
-                        patch = true;
-                    }
-                } else if (insn instanceof FieldInsnNode) {
-                    FieldInsnNode insn_ = (FieldInsnNode)insn;
-                    if (insn_.owner == Obf.name && !insn_.name.equals("__TARGET")) {
-                        insn_.owner = ObfType.getInternalName();
-                        patch = true;
-                    }
-                } else {
-                    continue;
-                }
-
-                if (patch)
-                    method.instructions.insert(insn.getPrevious(),
-                        new FieldInsnNode(Opcodes.GETSTATIC, Obf.name, "__TARGET", ObfType.getDescriptor()));
-            }
-        }
-
-        byte[] ObfTransformed = this.writeClass(Obf);
-        ObfTransformed = ByteCodeUtilities.applyTransformers(className, ObfTransformed, this);
-
-        return ByteCodeUtilities.readClass(ObfTransformed);
-    }
-
-    private static Type getObfType(ClassNode Obf) {
-        for (FieldNode field : Obf.fields) {
-            if ("__TARGET".equals(field.name)) {
-                return Type.getType(field.desc);
-            }
-        }
-
-        throw new RuntimeException("Can't resolve obfuscaued class name");
-    }
-
-    private String getObfMemberName(String name) {
-        return getObfMemberName(this.Obf, name);
-    }
-
-    private static String getObfMemberName(ClassNode Obf, String name) {
-        String nameObf = name + "Obf";
-
-        for (MethodNode method : Obf.methods) {
-            if (nameObf.equals(method.name)) {
-                // Need the last one
-                String result = null;
-
-                Iterator<AbstractInsnNode> iter = method.instructions.iterator();
-                while (iter.hasNext()) {
-                    AbstractInsnNode insn = iter.next();
-
-                    if (insn instanceof MethodInsnNode) {
-                        MethodInsnNode insn_ = (MethodInsnNode)insn;
-                        result = insn_.name;
-                    } else if (insn instanceof FieldInsnNode) {
-                        FieldInsnNode insn_ = (FieldInsnNode)insn;
-                        result = insn_.name;
-                    }
-                }
-
-                if (result == null)
-                    throw new RuntimeException("Unknown obfuscated name for " + name);
-
-                return result;
-            }
-        }
-
-        throw new RuntimeException("Unknown obfuscated name for " + name);
-    }
-
-    private String getObfClassAndMemberName(String helperName, String name) throws IOException {
-        ClassNode Obf = loadClass(helperName);
-        return getObfType(Obf).getInternalName() + "/" + getObfMemberName(Obf, name);
+        super("carpetclient.transformers.MinecraftObf");
     }
 
     @Override
@@ -210,21 +99,21 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
         {
             LabelNode label_tmp;
 
-            // int tickWorld = 0;
+            /* int tickWorld = 0; */
             init_lst.add(new FrameNode(Opcodes.F_APPEND, 1, new Object[] {Opcodes.INTEGER}, 0, null));
             init_lst.add(new InsnNode(Opcodes.ICONST_0));
             init_lst.add(new VarInsnNode(Opcodes.ISTORE, var_tickWorld));
 
-            // if (this.timer.elapsedTicksWorld > 0)
+            /* if (this.timer.elapsedTicksWorld > 0) */
             init_lst.add(new VarInsnNode(Opcodes.ALOAD, 0));
             init_lst.add(new FieldInsnNode(Opcodes.GETFIELD, targetClass.name, timerObf, timerType.getDescriptor()));
             init_lst.add(new FieldInsnNode(Opcodes.GETFIELD, timerType.getInternalName(), "elapsedTicksWorld", Type.INT_TYPE.getDescriptor()));
 
-            // {
+            /* { */
             label_tmp = new LabelNode();
             init_lst.add(new JumpInsnNode(Opcodes.IFLE, label_tmp));
 
-            // this.timer.elapsedTicksWorld--;
+            /* this.timer.elapsedTicksWorld--; */
             init_lst.add(new VarInsnNode(Opcodes.ALOAD, 0));
             init_lst.add(new FieldInsnNode(Opcodes.GETFIELD, targetClass.name, timerObf, timerType.getDescriptor()));
             init_lst.add(new InsnNode(Opcodes.DUP));
@@ -233,29 +122,29 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
             init_lst.add(new InsnNode(Opcodes.ISUB));
             init_lst.add(new FieldInsnNode(Opcodes.PUTFIELD, timerType.getInternalName(), "elapsedTicksWorld", Type.INT_TYPE.getDescriptor()));
 
-            // tickWorld = 1;
+            /* tickWorld = 1; */
             init_lst.add(new InsnNode(Opcodes.ICONST_1));
             init_lst.add(new VarInsnNode(Opcodes.ISTORE, var_tickWorld));
 
-            // }
+            /* } */
             init_lst.add(label_tmp);
             init_lst.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
 
-            // int tickPlayer = 0;
+            /* int tickPlayer = 0; */
             init_lst.add(new FrameNode(Opcodes.F_APPEND, 1, new Object[] {Opcodes.INTEGER}, 0, null));
             init_lst.add(new InsnNode(Opcodes.ICONST_0));
             init_lst.add(new VarInsnNode(Opcodes.ISTORE, var_tickPlayer));
 
-            // if (this.timer.elapsedTicksPlayer > 0)
+            /* if (this.timer.elapsedTicksPlayer > 0) */
             init_lst.add(new VarInsnNode(Opcodes.ALOAD, 0));
             init_lst.add(new FieldInsnNode(Opcodes.GETFIELD, targetClass.name, timerObf, timerType.getDescriptor()));
             init_lst.add(new FieldInsnNode(Opcodes.GETFIELD, timerType.getInternalName(), "elapsedTicksPlayer", Type.INT_TYPE.getDescriptor()));
 
-            // {
+            /* { */
             label_tmp = new LabelNode();
             init_lst.add(new JumpInsnNode(Opcodes.IFLE, label_tmp));
 
-            // this.timer.elapsedTicksPlayer--;
+            /* this.timer.elapsedTicksPlayer--; */
             init_lst.add(new VarInsnNode(Opcodes.ALOAD, 0));
             init_lst.add(new FieldInsnNode(Opcodes.GETFIELD, targetClass.name, timerObf, timerType.getDescriptor()));
             init_lst.add(new InsnNode(Opcodes.DUP));
@@ -264,11 +153,11 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
             init_lst.add(new InsnNode(Opcodes.ISUB));
             init_lst.add(new FieldInsnNode(Opcodes.PUTFIELD, timerType.getInternalName(), "elapsedTicksPlayer", Type.INT_TYPE.getDescriptor()));
 
-            // tickPlayer = 1;
+            /* tickPlayer = 1; */
             init_lst.add(new InsnNode(Opcodes.ICONST_1));
             init_lst.add(new VarInsnNode(Opcodes.ISTORE, var_tickPlayer));
 
-            // }
+            /* } */
             init_lst.add(label_tmp);
             init_lst.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
         }
@@ -391,12 +280,12 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
 
                     LabelNode label_tmp;
 
-                    // if (condvar != 0) {
+                    /* if (condvar != 0) { */
                     prepend.add(new VarInsnNode(Opcodes.ILOAD, condvar));
                     label_tmp = new LabelNode();
                     prepend.add(new JumpInsnNode(Opcodes.IFEQ, label_tmp));
 
-                    // }
+                    /* } */
                     append.add(label_tmp);
                     append.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
 

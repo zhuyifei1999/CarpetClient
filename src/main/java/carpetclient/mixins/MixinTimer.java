@@ -61,8 +61,11 @@ public abstract class MixinTimer implements AMixinTimer {
         this.elapsedTicksPlayer = (int)this.renderPartialTicksPlayer;
         this.renderPartialTicksPlayer -= (float)this.elapsedTicksPlayer;
 
+        // mostly used for EntityRenderer.updateCameraAndRender
         this.renderPartialTicks = this.renderPartialTicksWorld;
+        // mostly used for GuiScreen,drawScreen
         this.elapsedPartialTicks = this.elapsedPartialTicksPlayer;
+        // mostly used for Minecraft,runTick
         this.elapsedTicks = Math.max(this.elapsedTicksWorld, this.elapsedTicksPlayer);
 
         ci.cancel();
