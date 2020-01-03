@@ -2,6 +2,7 @@ package carpetclient.transformers;
 
 import com.mumfrey.liteloader.transformers.ClassTransformer;
 import com.mumfrey.liteloader.transformers.ByteCodeUtilities;
+import com.mumfrey.liteloader.util.ObfuscationUtilities;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,13 +39,60 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
 
     public MinecraftTransformer() {
         try {
-            this.Obf = ByteCodeUtilities.loadClass(ObfHelper, this);
+            this.Obf = loadClass(ObfHelper);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
         this.targetType = getObfType(this.Obf);
         this.targetClassName = this.targetType.getClassName();
+    }
+
+    private ClassNode loadClass(String className) throws IOException {
+        if (!ObfuscationUtilities.fmlIsPresent())
+            return ByteCodeUtilities.loadClass(className, this);
+
+        // Forge uses Searge mappins, and it has DeobfuscationTransformer
+        // to help with remapping Notch -> Searge, but it doesn't help on
+        // private members of Mixins which we use to get the Notch map.
+        // To workaround this, we transform the Obf helper before Forge
+        // does its remapping.
+        ClassNode Obf = ByteCodeUtilities.loadClass(className, false);
+        Type ObfType = getObfType(Obf);
+
+        for (MethodNode method : Obf.methods) {
+            Iterator<AbstractInsnNode> iter = method.instructions.iterator();
+            while (iter.hasNext()) {
+                AbstractInsnNode insn = iter.next();
+                boolean patch = false;
+
+                // Change: this.attr => this.__TARGET.attr
+                if (insn instanceof MethodInsnNode) {
+                    MethodInsnNode insn_ = (MethodInsnNode)insn;
+                    if (insn_.owner == Obf.name && !insn_.name.equals("__TARGET")) {
+                        insn_.owner = ObfType.getInternalName();
+                        patch = true;
+                    }
+                } else if (insn instanceof FieldInsnNode) {
+                    FieldInsnNode insn_ = (FieldInsnNode)insn;
+                    if (insn_.owner == Obf.name && !insn_.name.equals("__TARGET")) {
+                        insn_.owner = ObfType.getInternalName();
+                        patch = true;
+                    }
+                } else {
+                    continue;
+                }
+
+                if (patch)
+                    method.instructions.insert(insn.getPrevious(),
+                        new FieldInsnNode(Opcodes.GETSTATIC, Obf.name, "__TARGET", ObfType.getDescriptor()));
+            }
+        }
+
+        byte[] ObfTransformed = this.writeClass(Obf);
+        ObfTransformed = ByteCodeUtilities.applyTransformers(className, ObfTransformed, this);
+
+        return ByteCodeUtilities.readClass(ObfTransformed);
     }
 
     private static Type getObfType(ClassNode Obf) {
@@ -93,7 +141,7 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
     }
 
     private String getObfClassAndMemberName(String helperName, String name) throws IOException {
-        ClassNode Obf = ByteCodeUtilities.loadClass(helperName, this);
+        ClassNode Obf = loadClass(helperName);
         return getObfType(Obf).getInternalName() + "/" + getObfMemberName(Obf, name);
     }
 
@@ -300,7 +348,7 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
                         owner = insn_.owner;
                         name = insn_.name;
                     } else if (insn instanceof JumpInsnNode) {
-                        type = StatementType.DONOTALTER;
+                        type = StatementType.DO_NOT_ALTER;
                         continue;
                     } else {
                         continue;
@@ -330,7 +378,7 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
                 // Perform the patch
                 {
                     int condvar = 0;
-                    if (type == StatementType.UNKNOWN || type == StatementType.DONOTALTER) {
+                    if (type == StatementType.UNKNOWN || type == StatementType.DO_NOT_ALTER) {
                         continue;
                     } else if (type == StatementType.WORLD) {
                         condvar = var_tickWorld;
@@ -361,7 +409,7 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
                     method.instructions.insert(statement.get(statement.size() - 1), append);
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
@@ -373,7 +421,7 @@ public class MinecraftTransformer extends ClassTransformer implements IClassTran
 
     private static enum StatementType {
         UNKNOWN,
-        DONOTALTER,
+        DO_NOT_ALTER,
         WORLD,
         PLAYER,
     }
