@@ -25,6 +25,22 @@ import net.minecraft.network.play.server.SPacketCustomPayload;
 // we send the packet directly to LiteLoader before forge eats it.
 //
 // TODO: Perhaps upstream this to LiteLoader?
+//
+// FIXME: Handler is executing in the wrong thread (network thread instead of
+// Minecraft thread). To switch thread we can invoke the vanilla handler, and
+// by the time LiteLoader's handler executes Forge's handler have already
+// decremented the refcount to 0, causing io.netty.util.IllegalReferenceCountException.
+// So we'd have to:
+// * Switch to Minecraft thread using implementation-dependent private fields
+//   of INetHandler
+// * Call LiteLoader
+// * Somehow switch back (using muxex wait?) to dispatch to Forge's handler
+// Argh....
+// However, I'm not sure about the actual impact of this. I assume network threads
+// are per connection rather than per packet, so there would be only one thread
+// that could potentially write to the plugin channel registry, and during this
+// time, we are not sending any carpet client messages; though, if this is
+// upstreamed, other mods might...
 
 public class ForgePluginChannelRegister {
     public static final String HANDLER_NAME = "carpetmod:packet_handler";
