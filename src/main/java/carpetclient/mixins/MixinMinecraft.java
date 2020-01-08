@@ -2,6 +2,7 @@ package carpetclient.mixins;
 
 import carpetclient.Config;
 import carpetclient.bugfix.PistonFix;
+import carpetclient.mixinInterface.AMixinMinecraft;
 import carpetclient.mixinInterface.AMixinTimer;
 import carpetclient.rules.TickRate;
 import javax.annotation.Nullable;
@@ -25,7 +26,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Tick rate editing in Minecraft.java based on Cubitecks tick rate mod.
  */
 @Mixin(Minecraft.class)
-public abstract class MixinMinecraft implements IMixinMinecraft {
+public abstract class MixinMinecraft implements IMixinMinecraft, AMixinMinecraft {
     @Shadow
     private @Final
     Timer timer;
@@ -49,6 +50,11 @@ public abstract class MixinMinecraft implements IMixinMinecraft {
 
     @Shadow
     abstract public boolean isSingleplayer();
+
+    @Override
+    public float getRenderPartialTicksPausedPlayer() {
+        return this.renderPartialTicksPausedPlayer;
+    }
 
     /**
      * Reset logic for clipping through pistons.

@@ -11,4 +11,6 @@ public interface AMixinTimer {
     void setRenderPartialTicksPlayer(float value);
 
     void setWorldTickRate(float tps);
+    float getWorldTickRate();
+    float getPlayerTickRate();
 }
