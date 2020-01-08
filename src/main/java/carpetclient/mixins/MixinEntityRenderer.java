@@ -4,6 +4,7 @@ import carpetclient.Config;
 import carpetclient.mixins.IMixinMinecraft;
 import carpetclient.mixinInterface.AMixinMinecraft;
 import carpetclient.mixinInterface.AMixinTimer;
+import carpetclient.rules.TickRate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.renderer.EntityRenderer;
@@ -35,6 +36,11 @@ public abstract class MixinEntityRenderer {
      */
     @Redirect(method = "updateCameraAndRender(FJ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/EntityRenderer;renderWorld(FJ)V"))
     private void tickratePlayerPartial(EntityRenderer thisarg, float partialTicksWorld, long finishTimeNano) {
+        if (!TickRate.runTickRate) {
+            this.renderWorld(partialTicksWorld, finishTimeNano);
+            return;
+        }
+
         // Normally, entities are rendered at partial ticks in between last tick
         // pos and current pos. However, players are affected here at player tick
         // rate and the world's partial ticks does not reflect that of the player,
@@ -44,8 +50,15 @@ public abstract class MixinEntityRenderer {
         // bounding boxes or schematics), demanding the computation of entity
         // render position to switch between world and player partial ticks is
         // impractical for every mod out there. We do instead by computing where
-        // the last tick pos is supposed to be to show the player at the correct
-        // position and velocity. I.e. The following vector equations are satisfied:
+        // the player is supposed to be.
+        //
+        // If the world tick is faster than player, we and assign the render
+        // position to both last tick and current pos. The velocity is not kept
+        // because that would cause the current pos to occationally glitch into
+        // a block.
+        //
+        // If slower, velocity is kept and and the following vector equations
+        // are satisfied:
         //
         //   worldlastpos  + (worldcurpos  - worldlastpos ) * worldpartialticks
         // = playerlastpos + (playercurpos - playerlastpos) * playerpartialticks
@@ -71,26 +84,35 @@ public abstract class MixinEntityRenderer {
             ((AMixinTimer) timer).getPlayerTickRate();
 
         // I wish preprocessor macros are a thing :( I could use Tuple but they do references
-        {
-            double diffraw = this.mc.player.posX - this.mc.player.lastTickPosX;
-            double sum = this.mc.player.lastTickPosX + diffraw * partialTicksPlayer;
-            double diff = diffraw * rateMultiplier;
-            this.mc.player.lastTickPosX = sum - diff * partialTicksWorld;
-            this.mc.player.posX = diff + this.mc.player.lastTickPosX;
-        }
-        {
-            double diffraw = this.mc.player.posY - this.mc.player.lastTickPosY;
-            double sum = this.mc.player.lastTickPosY + diffraw * partialTicksPlayer;
-            double diff = diffraw * rateMultiplier;
-            this.mc.player.lastTickPosY = sum - diff * partialTicksWorld;
-            this.mc.player.posY = diff + this.mc.player.lastTickPosY;
-        }
-        {
-            double diffraw = this.mc.player.posZ - this.mc.player.lastTickPosZ;
-            double sum = this.mc.player.lastTickPosZ + diffraw * partialTicksPlayer;
-            double diff = diffraw * rateMultiplier;
-            this.mc.player.lastTickPosZ = sum - diff * partialTicksWorld;
-            this.mc.player.posZ = diff + this.mc.player.lastTickPosZ;
+        if (rateMultiplier < 1) {
+            {
+                double diffraw = this.mc.player.posX - this.mc.player.lastTickPosX;
+                double sum = this.mc.player.lastTickPosX + diffraw * partialTicksPlayer;
+                double diff = diffraw * rateMultiplier;
+                this.mc.player.lastTickPosX = sum - diff * partialTicksWorld;
+                this.mc.player.posX = diff + this.mc.player.lastTickPosX;
+            }
+            {
+                double diffraw = this.mc.player.posY - this.mc.player.lastTickPosY;
+                double sum = this.mc.player.lastTickPosY + diffraw * partialTicksPlayer;
+                double diff = diffraw * rateMultiplier;
+                this.mc.player.lastTickPosY = sum - diff * partialTicksWorld;
+                this.mc.player.posY = diff + this.mc.player.lastTickPosY;
+            }
+            {
+                double diffraw = this.mc.player.posZ - this.mc.player.lastTickPosZ;
+                double sum = this.mc.player.lastTickPosZ + diffraw * partialTicksPlayer;
+                double diff = diffraw * rateMultiplier;
+                this.mc.player.lastTickPosZ = sum - diff * partialTicksWorld;
+                this.mc.player.posZ = diff + this.mc.player.lastTickPosZ;
+            }
+        } else {
+            this.mc.player.lastTickPosX = this.mc.player.posX = this.mc.player.lastTickPosX
+                + (this.mc.player.posX - this.mc.player.lastTickPosX) * partialTicksPlayer;
+            this.mc.player.lastTickPosY = this.mc.player.posY = this.mc.player.lastTickPosY
+                + (this.mc.player.posY - this.mc.player.lastTickPosY) * partialTicksPlayer;
+            this.mc.player.lastTickPosZ = this.mc.player.posZ = this.mc.player.lastTickPosZ
+                + (this.mc.player.posZ - this.mc.player.lastTickPosZ) * partialTicksPlayer;
         }
 
         try {
