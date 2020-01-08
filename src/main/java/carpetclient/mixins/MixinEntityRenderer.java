@@ -21,7 +21,9 @@ public abstract class MixinEntityRenderer {
     private @Final Minecraft mc;
 
     @Shadow
-    public abstract void renderWorld(float partialTicks, long finishTimeNano);
+    public void renderWorld(float partialTicks, long finishTimeNano) {}
+    @Shadow
+    private void applyBobbing(float partialTicks) {}
 
     /**
      * fixes the world being culled while noclipping
@@ -125,5 +127,19 @@ public abstract class MixinEntityRenderer {
             this.mc.player.posY = savedCurY;
             this.mc.player.posZ = savedCurZ;
         }
+    }
+
+    /**
+     * fix tick rate rendering glitch rendering view bobbing
+     */
+    @Redirect(method = {"setupCameraTransform(FI)V", "renderHand(FI)V"},
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/EntityRenderer;applyBobbing(F)V"))
+    private void tickratePlayerBobbing(EntityRenderer thisarg, float partialTicksWorld) {
+        Timer timer = ((IMixinMinecraft) this.mc).getTimer();
+        float partialTicksPlayer = this.mc.isGamePaused() ?
+            ((AMixinMinecraft) this.mc).getRenderPartialTicksPausedPlayer() :
+            ((AMixinTimer) timer).getRenderPartialTicksPlayer();
+
+        this.applyBobbing(partialTicksPlayer);
     }
 }
