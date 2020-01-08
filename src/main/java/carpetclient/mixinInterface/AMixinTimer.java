@@ -5,6 +5,10 @@ package carpetclient.mixinInterface;
  */
 public interface AMixinTimer {
     int getElapsedTicksPlayer();
+    // float getRenderPartialTicksWorld();
+    float getRenderPartialTicksPlayer();
+    void setRenderPartialTicksWorld(float value);
+    void setRenderPartialTicksPlayer(float value);
 
     void setWorldTickRate(float tps);
 }

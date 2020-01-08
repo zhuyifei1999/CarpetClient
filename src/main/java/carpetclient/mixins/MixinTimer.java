@@ -44,6 +44,24 @@ public abstract class MixinTimer implements AMixinTimer {
         return this.elapsedTicksPlayer;
     }
 
+    // @Override
+    // public float getRenderPartialTicksWorld() {
+    //     return this.renderPartialTicksWorld;
+    // }
+    @Override
+    public float getRenderPartialTicksPlayer() {
+        return this.renderPartialTicksPlayer;
+    }
+    @Override
+    public void setRenderPartialTicksWorld(float value) {
+        this.renderPartialTicksWorld = value;
+        this.renderPartialTicks = this.renderPartialTicksWorld;
+    }
+    @Override
+    public void setRenderPartialTicksPlayer(float value) {
+        this.renderPartialTicksPlayer = value;
+    }
+
     @Override
     public void setWorldTickRate(float tps) {
         this.tickLength = 1000.0F / tps;
@@ -66,11 +84,11 @@ public abstract class MixinTimer implements AMixinTimer {
         this.elapsedTicksPlayer = (int)this.renderPartialTicksPlayer;
         this.renderPartialTicksPlayer -= (float)this.elapsedTicksPlayer;
 
-        // mostly used for EntityRenderer.updateCameraAndRender
+        // mostly used for EntityRenderer.updateCameraAndRender, hooked now with Mixin
         this.renderPartialTicks = this.renderPartialTicksWorld;
-        // mostly used for GuiScreen,drawScreen
+        // mostly used for GuiScreen.drawScreen
         this.elapsedPartialTicks = this.elapsedPartialTicksPlayer;
-        // mostly used for Minecraft,runTick
+        // mostly used for Minecraft.runTick
         this.elapsedTicks = Math.max(this.elapsedTicksWorld, this.elapsedTicksPlayer);
 
         ci.cancel();

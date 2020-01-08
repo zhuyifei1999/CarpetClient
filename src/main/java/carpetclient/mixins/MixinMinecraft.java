@@ -4,11 +4,14 @@ import carpetclient.Config;
 import carpetclient.bugfix.PistonFix;
 import carpetclient.mixinInterface.AMixinTimer;
 import carpetclient.rules.TickRate;
+import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.crash.CrashReport;
 import net.minecraft.crash.CrashReportCategory;
+import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.ReportedException;
 import net.minecraft.util.Timer;
 import org.spongepowered.asm.mixin.Final;
@@ -32,6 +35,20 @@ public abstract class MixinMinecraft implements IMixinMinecraft {
     public WorldClient world;
     @Shadow
     public EntityPlayerSP player;
+    @Shadow
+    private float renderPartialTicksPaused;
+    @Shadow
+    @Nullable
+    public GuiScreen currentScreen;
+    @Shadow
+    @Nullable
+    private IntegratedServer integratedServer;
+
+    // private float renderPartialTicksPausedWorld;
+    private float renderPartialTicksPausedPlayer;
+
+    @Shadow
+    abstract public boolean isSingleplayer();
 
     /**
      * Reset logic for clipping through pistons.
@@ -44,12 +61,35 @@ public abstract class MixinMinecraft implements IMixinMinecraft {
     }
 
     /**
+     * Reset logic for clipping through pistons.
+     *
+     * @param ci
+     */
+    @Inject(method = "runGameLoop", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Minecraft;isSingleplayer()Z"))
+    private void renderPartialTicksPausing(CallbackInfo ci) {
+        boolean flag = this.isSingleplayer() && this.currentScreen != null && this.currentScreen.doesGuiPauseGame() && !this.integratedServer.getPublic();
+        if (this.isGamePaused != flag) {
+            if (this.isGamePaused) {
+                // Will be done by vanilla
+                // this.renderPartialTicksPaused = ((AMixinTimer) this.timer).getRenderPartialTicksWorld();
+                this.renderPartialTicksPausedPlayer = ((AMixinTimer) this.timer).getRenderPartialTicksPlayer();
+            } else {
+                ((AMixinTimer) this.timer).setRenderPartialTicksWorld(this.renderPartialTicksPaused);
+                ((AMixinTimer) this.timer).setRenderPartialTicksPlayer(this.renderPartialTicksPausedPlayer);
+            }
+
+            // Will be done by vanilla
+            // this.isGamePaused = flag;
+        }
+    }
+
+    /**
      * Tick the player at the rate of player rate
      *
      * @param ci
      */
     @Inject(method = "runTick", at = @At("HEAD"))
-    public void tickPlayer(CallbackInfo ci) {
+    private void tickPlayer(CallbackInfo ci) {
         if (
             this.world != null && this.player != null && !this.isGamePaused &&
             ((AMixinTimer) this.timer).getElapsedTicksPlayer() > 0 &&
