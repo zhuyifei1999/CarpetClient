@@ -94,7 +94,9 @@ public abstract class MixinMinecraft implements IMixinMinecraft, AMixinMinecraft
      *
      * @param ci
      */
-    @Inject(method = "runTick", at = @At("HEAD"))
+    @Inject(method = "runTick", at = @At(value = "INVOKE_STRING",
+        target="Lnet/minecraft/profiler/Profiler;endStartSection(Ljava/lang/String;)V",
+        args = { "ldc=level" }, shift = At.Shift.AFTER))
     private void tickPlayer(CallbackInfo ci) {
         if (
             this.world != null && this.player != null && !this.isGamePaused &&
